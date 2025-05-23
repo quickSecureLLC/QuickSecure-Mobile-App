@@ -1,113 +1,165 @@
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { API_BASE_URL, getApiUrl } from '../config/api';
+import { SecureStorage } from './SecureStorage';
 
-export interface LoginResponse {
-  success: boolean;
+const TOKEN_KEY = 'qs_token';
+
+export interface User {
+  id: number;
+  username: string;
   role: string;
-  token: string;
-  expires_at: string;
+  profileImage?: string;
 }
 
-const API_BASE_URL = 'http://10.10.0.124:3002/api';
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+interface LoginResponse {
+  success: boolean;
+  user: User;
+}
+
+interface ApiError {
+  message: string;
+  code?: string;
+}
 
 export class AuthService {
-  private static async retryOperation<T>(operation: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+  private static async getStoredToken(): Promise<string | null> {
     try {
-      return await operation();
+      return await AsyncStorage.getItem(TOKEN_KEY);
     } catch (error) {
-      if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        return this.retryOperation(operation, retries - 1);
-      }
-      throw error;
+      console.error('Error reading token:', error);
+      return null;
     }
   }
 
-  static async login(username: string, password: string): Promise<boolean> {
+  private static async handleApiError(error: any): Promise<never> {
+    let message = 'An unexpected error occurred';
+    
+    if (error.response) {
+      // Handle specific HTTP error responses
+      switch (error.response.status) {
+        case 401:
+          message = 'Invalid username or password';
+          await this.logout(); // Clear invalid token
+          break;
+        case 403:
+          message = 'Access denied';
+          break;
+        case 422:
+          message = 'Please check your input and try again';
+          break;
+        case 500:
+          message = 'Server error. Please try again later';
+          break;
+      }
+    } else if (error.message) {
+      message = error.message;
+    }
+
+    throw new Error(message);
+  }
+
+  static async login(username: string, password: string, shouldStoreCredentials: boolean = true): Promise<LoginResponse> {
     try {
-      const response = await this.retryOperation(() => 
-        fetch(`${API_BASE_URL}/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            username,
-            password,
-            client_type: 'ios_app'
-          })
-        })
-      );
+      const response = await fetch(getApiUrl('login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Login failed');
+        const error = await response.json() as ApiError;
+        throw new Error(error.message || 'Login failed');
       }
 
-      const data: LoginResponse = await response.json();
-      if (data.success && data.token) {
-        await Promise.all([
-          SecureStore.setItemAsync('auth_token', data.token),
-          SecureStore.setItemAsync('user_role', data.role),
-          SecureStore.setItemAsync('token_expiry', data.expires_at)
-        ]);
-        return true;
+      const data = await response.json() as LoginResponse;
+      if (data.success) {
+        // Store user data in AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Store credentials if requested
+        if (shouldStoreCredentials) {
+          await SecureStorage.storeCredentials(username, password);
+        }
+        
+        return data;
       }
-      return false;
+      throw new Error('Login failed');
     } catch (error) {
-      console.error('Login failed:', error);
-      Alert.alert(
-        'Login Error',
-        error instanceof Error ? error.message : 'Please check your network connection and try again.'
-      );
-      return false;
+      return this.handleApiError(error);
+    }
+  }
+
+  static async loginWithBiometrics(): Promise<LoginResponse | null> {
+    try {
+      const success = await SecureStorage.authenticateWithBiometrics();
+      if (!success) {
+        return null;
+      }
+
+      const credentials = await SecureStorage.getCredentials();
+      if (!credentials) {
+        return null;
+      }
+
+      // Login with stored credentials but don't store them again
+      return this.login(credentials.username, credentials.password, false);
+    } catch (error) {
+      console.error('Error during biometric login:', error);
+      return null;
+    }
+  }
+
+  static async getUserProfile(): Promise<User | null> {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
     }
   }
 
   static async logout(): Promise<void> {
     try {
-      await Promise.all([
-        SecureStore.deleteItemAsync('auth_token'),
-        SecureStore.deleteItemAsync('user_role'),
-        SecureStore.deleteItemAsync('token_expiry')
-      ]);
+      await AsyncStorage.multiRemove([TOKEN_KEY, 'user']);
+      // Don't clear stored credentials - we want to keep them for next login
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Error during logout:', error);
     }
   }
 
-  static async getAuthToken(): Promise<string | null> {
+  static async checkAuth(): Promise<{ isAuthenticated: boolean; user: User | null }> {
     try {
-      const [token, expiry] = await Promise.all([
-        SecureStore.getItemAsync('auth_token'),
-        SecureStore.getItemAsync('token_expiry')
-      ]);
-      
-      if (!token || !expiry) {
-        return null;
+      const user = await this.getUserProfile();
+      if (!user) {
+        // Try biometric login if credentials are stored
+        const biometricResult = await this.loginWithBiometrics();
+        if (biometricResult?.success) {
+          return { 
+            isAuthenticated: true, 
+            user: biometricResult.user 
+          };
+        }
       }
-
-      // Check if token is expired
-      if (new Date(expiry) <= new Date()) {
-        await this.logout();
-        return null;
-      }
-
-      return token;
+      return { 
+        isAuthenticated: !!user, 
+        user 
+      };
     } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
+      await this.logout();
+      return { isAuthenticated: false, user: null };
     }
   }
 
-  static async getUserRole(): Promise<string | null> {
-    try {
-      return await SecureStore.getItemAsync('user_role');
-    } catch (error) {
-      console.error('Error getting user role:', error);
-      return null;
-    }
+  // Helper method to get auth headers for other services
+  static async getAuthHeaders(): Promise<HeadersInit> {
+    const user = await this.getUserProfile();
+    return {
+      'Content-Type': 'application/json',
+      ...(user ? { 'Authorization': `Bearer ${user.id}` } : {}),
+    };
   }
 } 

@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { AuthService } from './AuthService';
+import { API_BASE_URL, getApiUrl } from '../config/api';
 
 export type RoomStatus = 'Locked' | 'Unlocked' | 'Unsafe';
 
@@ -26,7 +27,6 @@ export class APIError extends Error {
   }
 }
 
-const API_BASE_URL = 'http://10.10.0.124:3002/api';
 const CACHE_DURATION = 10000; // 10 seconds
 
 export class RoomService {
@@ -36,10 +36,10 @@ export class RoomService {
   } = {};
 
   private static async getHeaders(): Promise<HeadersInit> {
-    const token = await AuthService.getAuthToken();
+    const user = await AuthService.getUserProfile();
     return {
       'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
+      'Authorization': user ? `Bearer ${user.id}` : ''
     };
   }
 
@@ -62,49 +62,23 @@ export class RoomService {
 
   static async getRoomStatuses(): Promise<RoomResponse> {
     try {
-      // Return cached data if valid
-      if (this.isCacheValid()) {
-        return this.cache.rooms!;
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(`${API_BASE_URL}/rooms`, {
-        headers: await this.getHeaders(),
-        signal: controller.signal
+      const headers = await this.getHeaders();
+      const response = await fetch(getApiUrl('rooms'), {
+        headers
       });
 
-      clearTimeout(timeoutId);
-
-      await this.handleResponse(response);
-
       if (!response.ok) {
-        throw new APIError('Failed to fetch room statuses');
+        if (response.status === 401) {
+          await AuthService.logout();
+          throw new Error('Session expired. Please login again');
+        }
+        throw new Error('Failed to fetch room statuses');
       }
 
-      const data = await response.json();
-      
-      // Update cache
-      this.cache = {
-        rooms: data,
-        timestamp: Date.now()
-      };
-
-      return data;
-    } catch (error: unknown) {
+      return await response.json();
+    } catch (error) {
       console.error('Error fetching room statuses:', error);
-      
-      if (error instanceof APIError && error.message !== 'Authentication required') {
-        Alert.alert('Error', 'Failed to fetch room statuses');
-      }
-
-      // Return cached data if available, even if expired
-      if (this.cache.rooms) {
-        return this.cache.rooms;
-      }
-
-      // Return default data as last resort
+      // Fallback data provided if API fails
       return {
         rooms: [
           { name: 'Gym', status: 'Locked' },
@@ -123,35 +97,27 @@ export class RoomService {
 
   static async updateRoomStatus(roomName: string, status: RoomStatus): Promise<boolean> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
+      const headers = await this.getHeaders();
       const response = await fetch(
-        `${API_BASE_URL}/rooms/${roomName}`,
+        getApiUrl(`rooms/${roomName}`),
         {
           method: 'PUT',
-          headers: await this.getHeaders(),
-          body: JSON.stringify({ status }),
-          signal: controller.signal
+          headers,
+          body: JSON.stringify({ status })
         }
       );
 
-      clearTimeout(timeoutId);
-      await this.handleResponse(response);
-      
       if (!response.ok) {
-        throw new APIError('Failed to update room status');
+        if (response.status === 401) {
+          await AuthService.logout();
+          throw new Error('Session expired. Please login again');
+        }
+        throw new Error('Failed to update room status');
       }
 
-      // Invalidate cache
-      this.cache = {};
-      
       return true;
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error updating room status:', error);
-      if (error instanceof APIError && error.message !== 'Authentication required') {
-        Alert.alert('Error', 'Failed to update room status');
-      }
       return false;
     }
   }
@@ -162,7 +128,7 @@ export class RoomService {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
-        `${API_BASE_URL}/emergency/${actionType}`,
+        getApiUrl(`emergency/${actionType}`),
         {
           method: 'POST',
           headers: await this.getHeaders(),

@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView, LongPressGestureHandler, State } from 'react-native-gesture-handler';
@@ -18,8 +19,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserScreen } from './src/screens/UserScreen';
 import { QuickSecureLogo } from './src/components/QuickSecureLogo';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { PhoneLoginScreen } from './src/screens/PhoneLoginScreen';
-import { MainApp } from './src/screens/MainApp'; // Rename your current App content to MainApp
+import { LoginScreen } from './src/screens/LoginScreen';
+import { SecureStorage } from './src/services/SecureStorage';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const { width, height } = Dimensions.get('window');
 const HOLD_DURATION = 3000; // 3 seconds to activate
@@ -282,18 +284,57 @@ const GUIDANCE_DATA = {
 };
 
 const AppContent = () => {
-  const { isAuthenticated, isLoading, isBiometricEnabled, authenticateWithBiometric } = useAuth();
+  const { isAuthenticated, isLoading, user, login, logout } = useAuth();
   const [isActivating, setIsActivating] = useState(false);
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
   const [modalConfig, setModalConfig] = useState<ModalConfig | null>(null);
   const [isBlurActive, setIsBlurActive] = useState(false);
   const [showEmergencyButton, setShowEmergencyButton] = useState(true);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const spreadAnimation = useRef(new Animated.Value(1)).current;
   const blurIntensity = useRef(new Animated.Value(0)).current;
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const [isEmergencyMinimized, setIsEmergencyMinimized] = useState(false);
   const [activeGuidance, setActiveGuidance] = useState<keyof typeof GUIDANCE_DATA | null>(null);
-  const [showUserProfile, setShowUserProfile] = useState(false);
+
+  useEffect(() => {
+    checkAuthAndBiometrics();
+  }, []);
+
+  const checkAuthAndBiometrics = async () => {
+    try {
+      // If user is not authenticated, let LoginScreen handle it
+      if (!isAuthenticated) {
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Check if biometrics are available and enabled
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      const hasStoredCredentials = !!(await SecureStorage.getCredentials());
+
+      if (hasHardware && isEnrolled && hasStoredCredentials) {
+        const { success } = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Authenticate to access QuickSecure',
+          fallbackLabel: 'Use password instead',
+          cancelLabel: 'Cancel',
+          disableDeviceFallback: false,
+        });
+
+        if (!success) {
+          // If biometric auth fails, log out and show login screen
+          await logout();
+        }
+      }
+    } catch (error) {
+      console.error('Error during authentication check:', error);
+      await logout();
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   const showModal = (config: ModalConfig) => {
     setModalConfig(config);
@@ -501,16 +542,10 @@ const AppContent = () => {
     </View>
   );
 
-  useEffect(() => {
-    if (isBiometricEnabled && !isAuthenticated) {
-      authenticateWithBiometric();
-    }
-  }, [isBiometricEnabled]);
-
-  if (isLoading) {
+  if (isLoading || isAuthenticating) {
     return (
       <View style={styles.container}>
-        {/* Add a loading spinner here if needed */}
+        <ActivityIndicator size="large" color="#FF3B30" />
       </View>
     );
   }
@@ -542,7 +577,7 @@ const AppContent = () => {
           )}
         </>
       ) : (
-        <PhoneLoginScreen />
+        <LoginScreen />
       )}
     </View>
   );

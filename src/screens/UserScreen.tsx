@@ -24,7 +24,7 @@ interface UserScreenProps {
 }
 
 export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
-  const { userRole, userEmail } = useAuth();
+  const { user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [emergencyAlertsEnabled, setEmergencyAlertsEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -36,7 +36,10 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
     checkBiometricAvailability();
     checkNotificationSettings();
     loadProfileImage();
-  }, []);
+    if (user?.profileImage) {
+      setProfileImage(user.profileImage);
+    }
+  }, [user]);
 
   const loadProfileImage = async () => {
     try {
@@ -291,7 +294,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
               />
             </View>
           </TouchableOpacity>
-          <Text style={styles.roleBadge}>{userRole}</Text>
+          <Text style={styles.roleBadge}>{user?.role || 'User'}</Text>
         </View>
 
         <View style={styles.section}>
@@ -300,17 +303,35 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
           <View style={styles.infoItem}>
             <Icon name="person" type="material" color="#666" size={20} />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Role</Text>
-              <Text style={styles.infoValue}>{userRole}</Text>
+              <Text style={styles.infoLabel}>Name</Text>
+              <Text style={styles.infoValue}>{user?.name || 'N/A'}</Text>
             </View>
           </View>
 
-          {userEmail && (
+          <View style={styles.infoItem}>
+            <Icon name="badge" type="material" color="#666" size={20} />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Role</Text>
+              <Text style={styles.infoValue}>{user?.role || 'N/A'}</Text>
+            </View>
+          </View>
+
+          {user?.email && (
             <View style={styles.infoItem}>
               <Icon name="email" type="material" color="#666" size={20} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{userEmail}</Text>
+                <Text style={styles.infoValue}>{user.email}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.department && (
+            <View style={styles.infoItem}>
+              <Icon name="business" type="material" color="#666" size={20} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Department</Text>
+                <Text style={styles.infoValue}>{user.department}</Text>
               </View>
             </View>
           )}
