@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "QuickSecure",
+    "slug": "quicksecure",
+    "version": "2.5.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3498db"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.quicksecure.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to scan QR codes",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photos to save QR codes",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to identify nearby rooms",
+        "NSLocationAlwaysUsageDescription": "This app needs access to location to identify nearby rooms",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3498db"
+      },
+      "package": "com.quicksecure.mobile",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CALL_PHONE",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location"
+    ]
+  }
+}
