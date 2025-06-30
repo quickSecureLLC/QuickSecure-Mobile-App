@@ -57,7 +57,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: "your-expo-project-id"
+        projectId: '0ea411e0-05d1-47d2-894d-cee9ef860dac'
       }
     }
   }
