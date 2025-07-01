@@ -20,9 +20,7 @@ export class PushNotificationService {
       }
 
       // Get the token
-      const expoPushToken = await Notifications.getExpoPushTokenAsync({
-        projectId: process.env.EXPO_PROJECT_ID // Make sure this is set in your app.config.js
-      });
+      const expoPushToken = await Notifications.getExpoPushTokenAsync();
 
       // Register the token with our backend
       await this.registerDeviceToken(expoPushToken.data);

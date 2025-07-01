@@ -3,6 +3,7 @@ export default {
     name: "QuickSecure Mobile",
     slug: "quicksecure-mobile",
     version: "1.0.0",
+    owner: "ronkumar1212",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
