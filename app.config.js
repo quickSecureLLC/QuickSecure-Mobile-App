@@ -1,6 +1,6 @@
 export default ({ config }) => ({
   ...config,
-  slug: "quicksecure",
+  slug: "quicksecure-mobile",
   name: "QuickSecure",
   extra: {
     ...(config.extra || {}),
