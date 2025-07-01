@@ -61,6 +61,11 @@ export default {
       eas: {
         projectId: '0ea411e0-05d1-47d2-894d-cee9ef860dac'
       }
+    },
+    doctor: {
+      reactNativeDirectoryCheck: {
+        listUnknownPackages: false
+      }
     }
   }
 }; 
