@@ -1,4 +1,5 @@
 // Network configuration for API endpoints
+// This is the single source of API config for QuickSecure
 export const API_BASE_URL = 'http://184.73.75.174:3000';
 
 // API timeout configuration
@@ -23,7 +24,7 @@ export const generateRequestId = (): string => {
 
 export const API_ENDPOINTS = {
   // Authentication
-  login: 'auth/login',
+  login: 'mobile/auth/login',
   refresh: 'auth/refresh',
   
   // User management

@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getApiUrl, API_ENDPOINTS, getRequestHeaders, API_CONFIG } from '../config/api';
 import { AuthService } from './AuthService';
+import { AppLog } from '../utils/logger';
 
 export class PushNotificationService {
   static async registerForPushNotificationsAsync(): Promise<string | null> {
@@ -15,7 +16,7 @@ export class PushNotificationService {
       }
       
       if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
+        AppLog.info('Failed to get push token for push notification!');
         return null;
       }
 
@@ -27,7 +28,7 @@ export class PushNotificationService {
 
       return expoPushToken.data;
     } catch (error) {
-      console.error('Error registering for push notifications:', error);
+      AppLog.error('Error registering for push notifications:', error);
       return null;
     }
   }
@@ -50,7 +51,7 @@ export class PushNotificationService {
         throw new Error(error.error || error.details || 'Failed to register push token with server');
       }
     } catch (error) {
-      console.error('Error registering device token:', error);
+      AppLog.error('Error registering device token:', error);
       throw error;
     }
   }
@@ -68,7 +69,7 @@ export class PushNotificationService {
         throw new Error(error.error || error.details || 'Failed to remove push token from server');
       }
     } catch (error) {
-      console.error('Error removing device token:', error);
+      AppLog.error('Error removing device token:', error);
       throw error;
     }
   }

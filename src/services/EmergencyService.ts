@@ -3,6 +3,7 @@ import { LocationService } from './LocationService';
 import { getApiUrl, API_ENDPOINTS, getRequestHeaders, API_CONFIG } from '../config/api';
 import { AuthService } from './AuthService';
 import { NavigationService } from './NavigationService';
+import { AppLog } from '../utils/logger';
 
 const QUEUED_ALERTS_KEY = 'qs_queued_alerts';
 const LAST_ALERT_TIME_KEY = 'qs_last_alert_time';
@@ -60,7 +61,7 @@ class EmergencyService {
       const timeSinceLastAlert = Date.now() - parseInt(lastAlertTime, 10);
       return timeSinceLastAlert > ALERT_COOLDOWN_MS;
     } catch (error) {
-      console.error('Error checking alert cooldown:', error);
+      AppLog.error('Error checking alert cooldown:', error);
       return true; // Default to allowing alert if storage fails
     }
   }
@@ -128,7 +129,7 @@ class EmergencyService {
       }
 
       // Log outgoing payload for backend debugging
-      console.log('[QuickSecure] Posting alert:', JSON.stringify(alertPayload));
+      AppLog.info('[QuickSecure] Posting alert:', JSON.stringify(alertPayload));
 
       // Always use /api/mobile/alerts
       const endpoint = 'mobile/alerts';
@@ -147,7 +148,7 @@ class EmergencyService {
 
       // Log response for debugging
       const responseText = await response.clone().text();
-      console.log('[QuickSecure] Alert response:', response.status, responseText);
+      AppLog.info('[QuickSecure] Alert response:', response.status, responseText);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -169,7 +170,7 @@ class EmergencyService {
       return data;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to post emergency';
-      console.error('Emergency response error:', error);
+      AppLog.error('Emergency response error:', error);
       throw new Error(message);
     }
   }
@@ -198,7 +199,7 @@ class EmergencyService {
       return data.alert ? data : null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to get latest alert';
-      console.error('Get latest alert error:', error);
+      AppLog.error('Get latest alert error:', error);
       throw new Error(message);
     }
   }
@@ -232,7 +233,7 @@ class EmergencyService {
       return await response.json();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to get alerts';
-      console.error('Get alerts error:', error);
+      AppLog.error('Get alerts error:', error);
       throw new Error(message);
     }
   }
@@ -251,9 +252,9 @@ class EmergencyService {
       }
       
       await AsyncStorage.setItem(QUEUED_ALERTS_KEY, JSON.stringify(queuedAlerts));
-      console.log('Alert queued for retry:', payload);
+      AppLog.info('Alert queued for retry:', payload);
     } catch (error) {
-      console.error('Error queuing offline alert:', error);
+      AppLog.error('Error queuing offline alert:', error);
     }
   }
 
@@ -269,7 +270,7 @@ class EmergencyService {
       try {
         headers = await AuthService.getAuthHeaders();
       } catch (error) {
-        console.error('Authentication failed during retry:', error);
+        AppLog.error('Authentication failed during retry:', error);
         return; // Will try again on next retry interval
       }
 
@@ -293,10 +294,10 @@ class EmergencyService {
           if (response.ok) {
             successfulAlerts.push(index);
           } else {
-            console.error(`Failed to retry alert ${index}:`, response.status);
+            AppLog.error(`Failed to retry alert ${index}:`, response.status);
           }
         } catch (error) {
-          console.error(`Error retrying alert ${index}:`, error);
+          AppLog.error(`Error retrying alert ${index}:`, error);
         }
       }));
 
@@ -304,10 +305,10 @@ class EmergencyService {
       if (successfulAlerts.length > 0) {
         const remainingAlerts = queuedAlerts.filter((_, index) => !successfulAlerts.includes(index));
         await AsyncStorage.setItem(QUEUED_ALERTS_KEY, JSON.stringify(remainingAlerts));
-        console.log(`Successfully retried ${successfulAlerts.length} alerts`);
+        AppLog.info(`Successfully retried ${successfulAlerts.length} alerts`);
       }
     } catch (error) {
-      console.error('Error during alert retry process:', error);
+      AppLog.error('Error during alert retry process:', error);
     }
   }
 
@@ -344,7 +345,7 @@ class EmergencyService {
         throw new Error('Failed to cancel emergency');
       }
     } catch (error) {
-      console.error('Error canceling emergency:', error);
+      AppLog.error('Error canceling emergency:', error);
       throw error;
     }
   }

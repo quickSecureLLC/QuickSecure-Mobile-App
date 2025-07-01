@@ -1,5 +1,6 @@
 import { SecureStorage } from '../services/SecureStorage';
 import { AuthService } from '../services/AuthService';
+import { AppLog } from './logger';
 
 const AUTH_TOKEN_KEY = 'qs_auth_token';
 
@@ -22,10 +23,10 @@ export class AuthHelper {
         return false;
       }
 
-      const result = await AuthService.login(credentials.username, credentials.password, false);
+      const result = await AuthService.login(credentials.email, credentials.password, credentials.schoolCode, false);
       return result.success;
     } catch (error) {
-      console.error('Silent refresh failed:', error);
+      AppLog.error('Silent refresh failed:', error);
       return false;
     }
   }

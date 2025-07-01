@@ -9,6 +9,7 @@ import {
   AppStateStatus,
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { AppLog } from '../utils/logger';
 
 interface AuthGateProps {
   children: React.ReactNode;
@@ -38,7 +39,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
         setAuthFailed(true);
       }
     } catch (error) {
-      console.error('Authentication error:', error);
+      AppLog.error('Authentication error:', error);
       setAuthFailed(true);
     } finally {
       setIsAuthenticating(false);

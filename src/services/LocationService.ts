@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { AppLog } from '../utils/logger';
 
 interface Coordinates {
   latitude: number;
@@ -43,7 +44,7 @@ class LocationService {
         );
       }
     } catch (error) {
-      console.error('Error initializing location service:', error);
+      AppLog.error('Error initializing location service:', error);
     }
   }
 
@@ -66,7 +67,7 @@ class LocationService {
       }
       return this.lastKnownLocation;
     } catch (error) {
-      console.error('Error getting location:', error);
+      AppLog.error('Error getting location:', error);
       return null;
     }
   }

@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { EmergencyService } from '../services/EmergencyService';
 import { AuthService } from '../services/AuthService';
 import { QuickSecureLogo } from '../components/QuickSecureLogo';
+import { AppLog } from '../utils/logger';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.7;
 const HOLD_DURATION = 3000; // 3 seconds for hold-to-activate
@@ -47,7 +48,7 @@ export const HomeScreen = () => {
       const canCreate = await AuthService.canCreateAlerts();
       setCanCreateAlerts(canCreate);
     } catch (error) {
-      console.error('Error checking user permissions:', error);
+      AppLog.error('Error checking user permissions:', error);
       setCanCreateAlerts(false);
     }
   };

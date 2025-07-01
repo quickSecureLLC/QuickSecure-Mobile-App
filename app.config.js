@@ -1,7 +1,7 @@
 export default {
   expo: {
-    name: "QuickSecure Mobile",
-    slug: "quicksecure-mobile",
+    name: "QuickSecure",
+    slug: "quicksecure",
     version: "1.0.0",
     owner: "ronkumar1212",
     orientation: "portrait",

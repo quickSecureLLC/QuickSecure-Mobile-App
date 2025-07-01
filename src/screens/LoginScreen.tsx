@@ -16,6 +16,7 @@ import { AuthService } from '../services/AuthService';
 import { QuickSecureLogo } from '../components/QuickSecureLogo';
 import { SecureStorage } from '../services/SecureStorage';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { AppLog } from '../utils/logger';
 
 export const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -41,7 +42,7 @@ export const LoginScreen = () => {
         handleBiometricAuth();
       }
     } catch (error) {
-      console.error('Error checking biometrics:', error);
+      AppLog.error('Error checking biometrics:', error);
     }
   };
 
@@ -102,7 +103,7 @@ export const LoginScreen = () => {
         );
       }
     } catch (error) {
-      console.error('Biometric auth error:', error);
+      AppLog.error('Biometric auth error:', error);
     } finally {
       setIsLoading(false);
     }

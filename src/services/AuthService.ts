@@ -18,6 +18,7 @@ import {
   RefreshResponse, 
   ApiError 
 } from '../types/auth';
+import { AppLog } from '../utils/logger';
 
 const AUTH_TOKEN_KEY = 'qs_auth_token';
 const REFRESH_TOKEN_KEY = 'qs_refresh_token';
@@ -29,7 +30,7 @@ export class AuthService {
     try {
       return await SecureStorage.getItemAsync(AUTH_TOKEN_KEY);
     } catch (error) {
-      console.error('Error reading token:', error);
+      AppLog.error('Error reading token:', error);
       return null;
     }
   }
@@ -38,7 +39,7 @@ export class AuthService {
     try {
       return await SecureStorage.getItemAsync(REFRESH_TOKEN_KEY);
     } catch (error) {
-      console.error('Error reading refresh token:', error);
+      AppLog.error('Error reading refresh token:', error);
       return null;
     }
   }
@@ -155,7 +156,7 @@ export class AuthService {
       
       throw new Error('Login failed - invalid response format');
     } catch (error) {
-      console.error('Login error:', error);
+      AppLog.error('Login error:', error);
       return await this.handleApiError(error);
     }
   }
@@ -175,7 +176,7 @@ export class AuthService {
       // Login with stored credentials but don't store them again
       return this.login(credentials.email, credentials.password, credentials.schoolCode, false);
     } catch (error) {
-      console.error('Error during biometric login:', error);
+      AppLog.error('Error during biometric login:', error);
       return null;
     }
   }
@@ -219,7 +220,7 @@ export class AuthService {
       
       throw new Error('Token refresh failed - invalid response format');
     } catch (error) {
-      console.error('Token refresh error:', error);
+      AppLog.error('Token refresh error:', error);
       return await this.handleApiError(error);
     }
   }
@@ -229,7 +230,7 @@ export class AuthService {
       const userStr = await AsyncStorage.getItem(USER_KEY);
       return userStr ? JSON.parse(userStr) : null;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      AppLog.error('Error getting user profile:', error);
       return null;
     }
   }
@@ -250,10 +251,10 @@ export class AuthService {
       try {
         await PushNotificationService.removeDeviceToken();
       } catch (error) {
-        console.error('Error removing push token:', error);
+        AppLog.error('Error removing push token:', error);
       }
     } catch (error) {
-      console.error('Error during logout:', error);
+      AppLog.error('Error during logout:', error);
       throw error;
     }
   }
@@ -282,7 +283,7 @@ export class AuthService {
         user 
       };
     } catch (error) {
-      console.error('Error checking auth:', error);
+      AppLog.error('Error checking auth:', error);
       await this.logout();
       return { isAuthenticated: false, user: null };
     }
@@ -303,7 +304,7 @@ export class AuthService {
       const user = await this.getUserProfile();
       return user ? ['admin', 'super_admin'].includes(user.role) : false;
     } catch (error) {
-      console.error('Error checking alert permissions:', error);
+      AppLog.error('Error checking alert permissions:', error);
       return false;
     }
   }

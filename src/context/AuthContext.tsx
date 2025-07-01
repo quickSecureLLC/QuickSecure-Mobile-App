@@ -3,6 +3,7 @@ import { AuthService } from '../services/AuthService';
 import { User } from '../types/auth';
 import { SecureStorage } from '../services/SecureStorage';
 import { Alert } from 'react-native';
+import { AppLog } from '../utils/logger';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(authStatus);
       setUser(userData);
     } catch (error) {
-      console.error('Auth state check failed:', error);
+      AppLog.error('Auth state check failed:', error);
       await logout(); // Ensure clean state on error
     } finally {
       setIsLoading(false);
@@ -61,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
-      console.error('Error during logout:', error);
+      AppLog.error('Error during logout:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };

@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { AppLog } from '../utils/logger';
 
 const CREDENTIALS_KEY = 'qs_credentials';
 const BIOMETRICS_ENABLED_KEY = 'qs_biometrics_enabled';
@@ -15,7 +16,7 @@ export class SecureStorage {
     try {
       return await SecureStore.getItemAsync(key);
     } catch (error) {
-      console.error('Error getting item from secure storage:', error);
+      AppLog.error('Error getting item from secure storage:', error);
       return null;
     }
   }
@@ -25,7 +26,7 @@ export class SecureStorage {
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
       await SecureStore.setItemAsync(key, stringValue);
     } catch (error) {
-      console.error('Error setting item in secure storage:', error);
+      AppLog.error('Error setting item in secure storage:', error);
     }
   }
 
@@ -33,7 +34,7 @@ export class SecureStorage {
     try {
       await SecureStore.deleteItemAsync(key);
     } catch (error) {
-      console.error('Error removing item from secure storage:', error);
+      AppLog.error('Error removing item from secure storage:', error);
     }
   }
 
@@ -47,7 +48,7 @@ export class SecureStorage {
         await SecureStore.setItemAsync(BIOMETRICS_ENABLED_KEY, 'true');
       }
     } catch (error) {
-      console.error('Error storing credentials:', error);
+      AppLog.error('Error storing credentials:', error);
     }
   }
 
@@ -56,7 +57,7 @@ export class SecureStorage {
       const credentialsStr = await SecureStore.getItemAsync(CREDENTIALS_KEY);
       return credentialsStr ? JSON.parse(credentialsStr) : null;
     } catch (error) {
-      console.error('Error getting credentials:', error);
+      AppLog.error('Error getting credentials:', error);
       return null;
     }
   }
@@ -66,7 +67,7 @@ export class SecureStorage {
       const enabled = await SecureStore.getItemAsync(BIOMETRICS_ENABLED_KEY);
       return enabled === 'true';
     } catch (error) {
-      console.error('Error checking biometrics status:', error);
+      AppLog.error('Error checking biometrics status:', error);
       return false;
     }
   }
@@ -75,7 +76,7 @@ export class SecureStorage {
     try {
       await SecureStore.setItemAsync(BIOMETRICS_ENABLED_KEY, enabled ? 'true' : 'false');
     } catch (error) {
-      console.error('Error setting biometrics status:', error);
+      AppLog.error('Error setting biometrics status:', error);
     }
   }
 
@@ -100,7 +101,7 @@ export class SecureStorage {
 
       return success;
     } catch (error) {
-      console.error('Error authenticating with biometrics:', error);
+      AppLog.error('Error authenticating with biometrics:', error);
       return false;
     }
   }
@@ -110,7 +111,7 @@ export class SecureStorage {
       await SecureStore.deleteItemAsync(CREDENTIALS_KEY);
       await SecureStore.deleteItemAsync(BIOMETRICS_ENABLED_KEY);
     } catch (error) {
-      console.error('Error clearing credentials:', error);
+      AppLog.error('Error clearing credentials:', error);
     }
   }
 } 

@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import { AuthService } from './AuthService';
 import { API_BASE_URL, getApiUrl } from '../config/api';
+import { AppLog } from '../utils/logger';
 
 export type RoomStatus = 'Locked' | 'Unlocked' | 'Unsafe';
 
@@ -77,7 +78,7 @@ export class RoomService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching room statuses:', error);
+      AppLog.error('Error fetching room statuses:', error);
       // Fallback data provided if API fails
       return {
         rooms: [
@@ -117,7 +118,7 @@ export class RoomService {
       
       return true;
     } catch (error) {
-      console.error('Error updating room status:', error);
+      AppLog.error('Error updating room status:', error);
       return false;
     }
   }
@@ -148,7 +149,7 @@ export class RoomService {
       
       return true;
     } catch (error: unknown) {
-      console.error(`Error triggering ${actionType}:`, error);
+      AppLog.error(`Error triggering ${actionType}:`, error);
       if (error instanceof APIError && error.message !== 'Authentication required') {
         Alert.alert('Error', `Failed to trigger ${actionType}`);
       }

@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SecureStorage } from '../services/SecureStorage';
 import { AuthService } from '../services/AuthService';
 import { LocationService, type Coordinates } from '../services/LocationService';
+import { AppLog } from '../utils/logger';
 
 const APP_VERSION = '2.5.0'; // Hardcoded version since we can't use expo-constants
 
@@ -74,7 +75,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         setUserName(savedName);
       }
     } catch (error) {
-      console.log('Error loading user name:', error);
+      AppLog.error('Error loading user name:', error);
     }
   };
 
@@ -84,7 +85,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
       setIsEditingName(false);
       Alert.alert('Success', 'Name updated successfully');
     } catch (error) {
-      console.error('Error saving name:', error);
+      AppLog.error('Error saving name:', error);
       Alert.alert('Error', 'Failed to save name. Please try again.');
     }
   };
@@ -96,7 +97,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         setProfileImage(savedImage);
       }
     } catch (error) {
-      console.log('Error loading profile image:', error);
+      AppLog.info('Error loading profile image:', error);
     }
   };
 
@@ -167,7 +168,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         setProfileImage(imageUri);
       }
     } catch (error) {
-      console.log('Error picking image:', error);
+      AppLog.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to update profile photo');
     }
   };
@@ -188,7 +189,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         );
       }
     } catch (error) {
-      console.log('Error checking biometric availability:', error);
+      AppLog.error('Error checking biometric availability:', error);
     }
   };
 
@@ -201,7 +202,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         setEmergencyAlertsEnabled(true); // Or get this from AsyncStorage if you want to persist the setting
       }
     } catch (error) {
-      console.log('Error checking notification settings:', error);
+      AppLog.error('Error checking notification settings:', error);
     }
   };
 
@@ -234,7 +235,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         setEmergencyAlertsEnabled(true);
       }
     } catch (error) {
-      console.log('Error toggling notifications:', error);
+      AppLog.error('Error toggling notifications:', error);
     }
   };
 
@@ -292,7 +293,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         );
       }
     } catch (error) {
-      console.log('Error toggling biometric:', error);
+      AppLog.error('Error toggling biometric:', error);
       Alert.alert('Error', `Unable to configure ${biometricType}. Please try again.`);
     }
   };
@@ -306,7 +307,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
       await logout();
       onClose(); // Close the user profile screen
     } catch (error) {
-      console.error('Error during logout:', error);
+      AppLog.error('Error during logout:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
@@ -321,7 +322,7 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
         hasToken: !!token
       });
     } catch (error) {
-      console.error('Error loading dev credentials:', error);
+      AppLog.error('Error loading dev credentials:', error);
     }
   };
 

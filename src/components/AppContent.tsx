@@ -24,6 +24,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { EmergencyService } from '../services/EmergencyService';
 import { PushNotificationService } from '../services/PushNotificationService';
 import { EmergencyActivatedScreen } from './EmergencyActivatedScreen';
+import { AppLog } from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 const HOLD_DURATION = 3000; // 3 seconds to activate
@@ -214,7 +215,7 @@ const GuidanceScreen: React.FC<GuidanceScreenProps> = ({
         }, 500);
       }
     } catch (error) {
-      console.error('Error dispatching emergency:', error);
+      AppLog.error('Error dispatching emergency:', error);
     }
   };
 
@@ -403,7 +404,7 @@ export const AppContent = () => {
     // Fire-and-forget cancel request
     EmergencyService.cancelEmergency()
       .catch(error => {
-        console.error('Error canceling emergency:', error);
+        AppLog.error('Error canceling emergency:', error);
       });
   };
 
@@ -415,7 +416,7 @@ export const AppContent = () => {
     // Fire-and-forget network request
     EmergencyService.postEmergencyAlert(user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown Teacher')
       .catch(error => {
-        console.error('Error posting emergency alert:', error);
+        AppLog.error('Error posting emergency alert:', error);
         // UI is already transitioned, no need to handle error here
       });
   };

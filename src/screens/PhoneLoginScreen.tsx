@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Input, Button, Text } from 'react-native-elements';
 import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/AuthService';
 
 export const PhoneLoginScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -24,8 +25,11 @@ export const PhoneLoginScreen = () => {
 
     setIsLoading(true);
     try {
-      const success = await login(phoneNumber);
-      if (!success) {
+      // For demo: use phoneNumber as email, and dummy password/schoolCode
+      const response = await AuthService.login(phoneNumber, 'password', 'school', false);
+      if (response && response.success && response.user) {
+        await login(response.user);
+      } else {
         Alert.alert('Login Failed', 'Please check your phone number and try again');
       }
     } catch (error) {
