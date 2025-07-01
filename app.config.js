@@ -30,7 +30,8 @@ export default {
               NSExceptionMinimumTLSVersion: "TLSv1.2"
             }
           }
-        }
+        },
+        ITSAppUsesNonExemptEncryption: false
       }
     },
     android: {
