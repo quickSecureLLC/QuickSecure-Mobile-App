@@ -104,20 +104,39 @@ class EmergencyService {
         throw new Error('Please wait before sending another alert');
       }
 
-      // Always include coordinates if available
+      // Get fresh location for emergency scenarios - NO CACHING
       let coordinates = undefined;
       try {
-        const loc = await LocationService.getLastKnownCoords();
+        // Use the production-ready emergency GPS function - NO CACHING WHATSOEVER
+        const loc = await LocationService.getEmergencyGPS();
         if (loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+          // Validate GPS quality
+          const validation = await LocationService.validateLocationAccuracy(loc);
+
           coordinates = {
             latitude: loc.latitude,
             longitude: loc.longitude,
             accuracy: loc.accuracy,
             timestamp: loc.timestamp
           };
+
+          AppLog.info('=== EMERGENCY ALERT GPS COORDINATES ===');
+          AppLog.info('Coordinates:', JSON.stringify(coordinates, null, 2));
+          AppLog.info('Quality:', validation.quality);
+          AppLog.info('Valid:', validation.isValid);
+
+          if (validation.isValid) {
+            AppLog.info(`Emergency alert using fresh GPS (${validation.quality} quality):`, coordinates);
+          } else {
+            AppLog.warn(`Emergency alert using GPS with poor accuracy (${loc.accuracy}m):`, coordinates);
+          }
+        } else {
+          AppLog.error('Emergency alert: No fresh GPS data available - alert will not be sent');
+          throw new Error('Unable to get fresh GPS location for emergency alert');
         }
       } catch (e) {
-        // Permission denied or unavailable, just omit coordinates
+        AppLog.error('GPS fetch failed for emergency alert:', e);
+        throw new Error('Failed to get fresh GPS location. Please ensure location services are enabled and try again.');
       }
 
       const alertPayload: any = {
@@ -167,7 +186,17 @@ class EmergencyService {
 
       const data = JSON.parse(responseText);
       await AsyncStorage.setItem(LAST_ALERT_TIME_KEY, Date.now().toString());
-      return data;
+      
+      // Return the response with GPS coordinates included
+      return {
+        ...data,
+        gpsCoordinates: coordinates ? {
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracy: coordinates.accuracy,
+          timestamp: coordinates.timestamp
+        } : null
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to post emergency';
       AppLog.error('Emergency response error:', error);

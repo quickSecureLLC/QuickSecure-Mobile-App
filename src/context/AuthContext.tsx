@@ -4,6 +4,7 @@ import { User } from '../types/auth';
 import { SecureStorage } from '../services/SecureStorage';
 import { Alert } from 'react-native';
 import { AppLog } from '../utils/logger';
+import { LocationService } from '../services/LocationService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -36,6 +37,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (biometricResult?.success) {
             setIsAuthenticated(true);
             setUser(biometricResult.user);
+            // Initialize location service after successful authentication
+            LocationService.init().catch(error => {
+              AppLog.error('Failed to initialize location service:', error);
+            });
             return;
           }
         }
@@ -43,6 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setIsAuthenticated(authStatus);
       setUser(userData);
+      
+      // Initialize location service if authenticated
+      if (authStatus) {
+        LocationService.init().catch(error => {
+          AppLog.error('Failed to initialize location service:', error);
+        });
+      }
     } catch (error) {
       AppLog.error('Auth state check failed:', error);
       await logout(); // Ensure clean state on error
@@ -54,6 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
+    // Initialize location service after successful login
+    LocationService.init().catch(error => {
+      AppLog.error('Failed to initialize location service after login:', error);
+    });
   };
 
   const logout = async () => {

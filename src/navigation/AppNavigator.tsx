@@ -11,11 +11,11 @@ export const AppNavigator = () => {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!isAuthenticated ? (
+        {!isAuthenticated ? (
         <Stack.Screen name="Login" component={LoginScreen} />
-      ) : (
+        ) : (
         <Stack.Screen name="Home" component={AppContent} />
-      )}
-    </Stack.Navigator>
+        )}
+      </Stack.Navigator>
   );
 }; 

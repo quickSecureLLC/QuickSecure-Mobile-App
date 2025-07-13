@@ -25,7 +25,12 @@ export default ({ config }) => ({
           }
         }
       },
-      ITSAppUsesNonExemptEncryption: false
+      ITSAppUsesNonExemptEncryption: false,
+      NSLocationWhenInUseUsageDescription: "This app uses your location to provide safety features.",
+      NSLocationAlwaysUsageDescription: "This app needs access to your location even when the app is in the background.",
+      NSCameraUsageDescription: "This app uses the camera to let you update your profile photo.",
+      NSPhotoLibraryUsageDescription: "This app needs access to your photo library to let you choose a profile photo.",
+      NSMotionUsageDescription: "This app uses motion and barometer sensors to improve location accuracy and estimate floor level."
     }
   },
   android: {

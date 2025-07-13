@@ -6,6 +6,17 @@ import { AppLog } from '../utils/logger';
 
 export class PushNotificationService {
   static async registerForPushNotificationsAsync(): Promise<string | null> {
+    // Check if user is authenticated and has admin role
+    const user = await AuthService.getUserProfile();
+    const token = await AuthService.getStoredToken?.() || null;
+    if (!user || !token) {
+      AppLog.error('User not authenticated, cannot register for push notifications');
+      return null;
+    }
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      AppLog.error('User does not have admin privileges, cannot register for push notifications');
+      return null;
+    }
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -57,6 +68,17 @@ export class PushNotificationService {
   }
 
   static async removeDeviceToken(): Promise<void> {
+    // Check if user is authenticated and has admin role
+    const user = await AuthService.getUserProfile();
+    const token = await AuthService.getStoredToken?.() || null;
+    if (!user || !token) {
+      AppLog.error('User not authenticated, cannot remove device token');
+      return;
+    }
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      AppLog.error('User does not have admin privileges, cannot remove device token');
+      return;
+    }
     try {
       const headers = await AuthService.getAuthHeaders();
       const response = await fetch(getApiUrl(API_ENDPOINTS.pushToken), {

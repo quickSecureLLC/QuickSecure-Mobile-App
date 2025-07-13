@@ -1,6 +1,6 @@
 // Network configuration for API endpoints
 // This is the single source of API config for QuickSecure
-export const API_BASE_URL = 'http://184.73.75.174:3000';
+export const API_BASE_URL = 'https://demo.quicksecurellc.com';
 
 // API timeout configuration
 export const API_CONFIG = {

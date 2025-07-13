@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,10 +20,11 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SecureStorage } from '../services/SecureStorage';
 import { AuthService } from '../services/AuthService';
-import { LocationService, type Coordinates } from '../services/LocationService';
+import { LocationService, type Coordinates, getFloorEstimation } from '../services/LocationService';
 import { AppLog } from '../utils/logger';
 
 const APP_VERSION = '2.5.0'; // Hardcoded version since we can't use expo-constants
+const PERMISSIONS_REQUESTED_KEY = 'qs_permissions_requested';
 
 interface UserScreenProps {
   onClose: () => void;
@@ -50,6 +51,8 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
   const [gpsLocation, setGpsLocation] = useState<Coordinates | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
+  const [floorEstimation, setFloorEstimation] = useState<any>(null);
+  const permissionsRequested = useRef(false);
 
   useEffect(() => {
     checkBiometricAvailability();
@@ -65,6 +68,27 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
     }
     if (__DEV__) {
       loadDevCredentials();
+    }
+    if (!permissionsRequested.current) {
+      (async () => {
+        try {
+          const alreadyRequested = await AsyncStorage.getItem(PERMISSIONS_REQUESTED_KEY);
+          const cameraStatus = await ImagePicker.getCameraPermissionsAsync();
+          const mediaStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+          if (!alreadyRequested && (!cameraStatus.granted || !mediaStatus.granted)) {
+            if (!cameraStatus.granted) {
+              await ImagePicker.requestCameraPermissionsAsync();
+            }
+            if (!mediaStatus.granted) {
+              await ImagePicker.requestMediaLibraryPermissionsAsync();
+            }
+            await AsyncStorage.setItem(PERMISSIONS_REQUESTED_KEY, 'true');
+          }
+          permissionsRequested.current = true;
+        } catch (error) {
+          AppLog.error('Error requesting permissions:', error);
+        }
+      })();
     }
   }, [user]);
 
@@ -126,9 +150,12 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
   const pickImage = async (source: 'camera' | 'library') => {
     try {
       let permissionResult;
-      
+      let result;
       if (source === 'camera') {
-        permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+        permissionResult = await ImagePicker.getCameraPermissionsAsync();
+        if (!permissionResult.granted) {
+          permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+        }
         if (!permissionResult.granted) {
           Alert.alert(
             'Permission Required',
@@ -138,10 +165,20 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
               { text: 'Open Settings', onPress: () => Linking.openSettings() }
             ]
           );
+          AppLog.error('Camera permission denied');
           return;
         }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
       } else {
-        permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        permissionResult = await ImagePicker.getMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        }
         if (!permissionResult.granted) {
           Alert.alert(
             'Permission Required',
@@ -151,21 +188,24 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
               { text: 'Open Settings', onPress: () => Linking.openSettings() }
             ]
           );
+          AppLog.error('Photo library permission denied');
           return;
         }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
         await AsyncStorage.setItem('profileImage', imageUri);
         setProfileImage(imageUri);
+      } else if (result.canceled) {
+        AppLog.info('Image picker canceled by user');
+      } else {
+        Alert.alert('Error', 'No image selected.');
       }
     } catch (error) {
       AppLog.error('Error picking image:', error);
@@ -337,13 +377,53 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
     setGpsLoading(true);
     setGpsError('');
     try {
-      const location = await LocationService.getCurrentLocation();
-      setGpsLocation(location);
-    } catch (err: any) {
-      setGpsError(err.message || 'Failed to get location');
-    } finally {
-      setGpsLoading(false);
+      const data = await getFloorEstimation();
+      setFloorEstimation(data);
+      setGpsLocation(data ? { latitude: data.latitude, longitude: data.longitude, accuracy: data.accuracy, timestamp: data.timestamp } : null);
+    } catch (err) {
+      setGpsError(err instanceof Error ? err.message : 'Failed to get location');
     }
+    setGpsLoading(false);
+  };
+
+  const handleTestFreshGps = async () => {
+    setGpsLoading(true);
+    setGpsError('');
+    try {
+      AppLog.info('Testing fresh GPS fetch...');
+      const startTime = Date.now();
+      const location = await LocationService.getFreshLocationForEmergency();
+      const duration = Date.now() - startTime;
+      
+      if (location) {
+        setGpsLocation(location);
+        const validation = await LocationService.validateLocationAccuracy(location);
+        setGpsError(`GPS obtained in ${duration}ms - Lat: ${location.latitude}, Lon: ${location.longitude}, Accuracy: ${location.accuracy}m, Quality: ${validation.quality}`);
+      } else {
+        setGpsError('No location data received');
+      }
+    } catch (err) {
+      setGpsError(`GPS test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+    setGpsLoading(false);
+  };
+
+  const handleTestMostAccurateGps = async () => {
+    setGpsLoading(true);
+    setGpsError('');
+    try {
+      AppLog.info('Testing current location...');
+      const startTime = Date.now();
+      const location = await LocationService.getCurrentLocation();
+      const duration = Date.now() - startTime;
+      
+      setGpsLocation(location);
+      const validation = await LocationService.validateLocationAccuracy(location);
+      setGpsError(`Current location obtained in ${duration}ms - Lat: ${location.latitude}, Lon: ${location.longitude}, Accuracy: ${location.accuracy}m, Quality: ${validation.quality}`);
+    } catch (err) {
+      setGpsError(`Current location test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+    setGpsLoading(false);
   };
 
   return (
@@ -360,13 +440,6 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.locationBanner}>
-          <Icon name="location-on" type="material" color="#fff" size={20} style={{ marginRight: 8 }} />
-          <Text style={styles.locationBannerText}>
-            Location permission must be set to <Text style={{ fontWeight: 'bold', textDecorationLine: 'underline' }}>Always</Text> for this app to function correctly.
-          </Text>
-        </View>
-
         <View style={styles.profileHeader}>
           <TouchableOpacity 
             style={styles.avatarContainer}
@@ -589,9 +662,30 @@ export const UserScreen: React.FC<UserScreenProps> = ({ onClose }) => {
             >
               <Text style={styles.buttonText}>{gpsLoading ? 'Getting location...' : 'Get Current GPS Location'}</Text>
             </TouchableOpacity>
-            {gpsLocation && (
+            
+            <TouchableOpacity
+              style={[styles.button, gpsLoading && { opacity: 0.6 }, { marginTop: 10, backgroundColor: '#FF6B35' }]}
+              onPress={handleTestFreshGps}
+              disabled={gpsLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Test fresh GPS for emergency"
+            >
+              <Text style={styles.buttonText}>{gpsLoading ? 'Testing GPS...' : 'Test Fresh GPS (Emergency)'}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.button, gpsLoading && { opacity: 0.6 }, { marginTop: 10, backgroundColor: '#4CAF50' }]}
+              onPress={handleTestMostAccurateGps}
+              disabled={gpsLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Test current location"
+            >
+              <Text style={styles.buttonText}>{gpsLoading ? 'Getting Location...' : 'Get Current Location'}</Text>
+            </TouchableOpacity>
+            
+            {floorEstimation && (
               <View style={styles.codeBlock}>
-                <Text selectable style={styles.codeText}>{JSON.stringify(gpsLocation, null, 2)}</Text>
+                <Text selectable style={styles.codeText}>{JSON.stringify(floorEstimation, null, 2)}</Text>
               </View>
             )}
             {gpsError ? (
@@ -933,23 +1027,6 @@ const styles = StyleSheet.create({
   },
   modalButtonTextPrimary: {
     color: '#fff',
-  },
-  locationBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e74c3c',
-    padding: 12,
-    borderRadius: 10,
-    margin: 16,
-    marginBottom: 0,
-    justifyContent: 'center',
-  },
-  locationBannerText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
-    flex: 1,
   },
   button: {
     backgroundColor: '#2196F3',

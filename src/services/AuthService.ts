@@ -26,7 +26,7 @@ const USER_KEY = 'qs_user';
 const SCHOOL_CODE_KEY = 'qs_school_code';
 
 export class AuthService {
-  private static async getStoredToken(): Promise<string | null> {
+  static async getStoredToken(): Promise<string | null> {
     try {
       return await SecureStorage.getItemAsync(AUTH_TOKEN_KEY);
     } catch (error) {
@@ -196,7 +196,7 @@ export class AuthService {
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
 
       const response = await fetch(getApiUrl(API_ENDPOINTS.refresh), {
-        method: 'POST',
+          method: 'POST',
         headers: getRequestHeaders(),
         body: JSON.stringify(requestBody),
         signal: controller.signal
@@ -265,7 +265,7 @@ export class AuthService {
         this.getUserProfile(),
         this.getStoredToken()
       ]);
-
+      
       if (!user || !token) {
         // Try biometric login if credentials are stored
         const biometricResult = await this.loginWithBiometrics();

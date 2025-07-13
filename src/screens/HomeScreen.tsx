@@ -10,11 +10,14 @@ import {
   Linking,
   PanResponder,
   BackHandler,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { Text, Button, Icon } from 'react-native-elements';
 import { useAuth } from '../context/AuthContext';
 import { EmergencyService } from '../services/EmergencyService';
 import { AuthService } from '../services/AuthService';
+import { LocationService } from '../services/LocationService';
 import { QuickSecureLogo } from '../components/QuickSecureLogo';
 import { AppLog } from '../utils/logger';
 
@@ -29,6 +32,7 @@ export const HomeScreen = () => {
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
   const [canCreateAlerts, setCanCreateAlerts] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<'unknown' | 'searching' | 'found' | 'error'>('unknown');
   const holdProgress = useRef(new Animated.Value(0)).current;
   const emergencyScale = useRef(new Animated.Value(1)).current;
   const backgroundPulse = useRef(new Animated.Value(0)).current;
@@ -41,6 +45,22 @@ export const HomeScreen = () => {
     return () => {
       EmergencyService.stopRetryProcess();
     };
+  }, []);
+
+  // Handle app background/foreground transitions
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        // Refresh location when app becomes active
+        AppLog.info('App became active, refreshing location...');
+        LocationService.refreshLocation().catch(error => {
+          AppLog.error('Failed to refresh location on app resume:', error);
+        });
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
   }, []);
 
   const checkUserPermissions = async () => {
@@ -92,7 +112,16 @@ export const HomeScreen = () => {
         'Admin assistance needed in main office'
       );
       if (response.success) {
-        Alert.alert('Admin Support', 'Admin support alert sent successfully.');
+        // Create success message with GPS coordinates
+        let successMessage = 'Admin support alert sent successfully.';
+        
+        if (response.gpsCoordinates) {
+          const coords = response.gpsCoordinates;
+          const accuracy = coords.accuracy ? ` (Accuracy: ${coords.accuracy}m)` : '';
+          successMessage += `\n\nGPS Location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}${accuracy}`;
+        }
+        
+        Alert.alert('Admin Support', successMessage);
       } else {
         throw new Error('Failed to send admin support alert');
       }
@@ -108,6 +137,7 @@ export const HomeScreen = () => {
     }
 
     try {
+      setGpsStatus('searching');
       let details = '';
       let priority: 'high' | 'critical' = 'high';
       
@@ -131,9 +161,21 @@ export const HomeScreen = () => {
       );
 
       if (response.success) {
-        Alert.alert('Success', `${actionType} alert has been sent successfully`);
+        setGpsStatus('found');
+        
+        // Create success message with GPS coordinates
+        let successMessage = `${actionType} alert has been sent successfully`;
+        
+        if (response.gpsCoordinates) {
+          const coords = response.gpsCoordinates;
+          const accuracy = coords.accuracy ? ` (Accuracy: ${coords.accuracy}m)` : '';
+          successMessage += `\n\nGPS Location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}${accuracy}`;
+        }
+        
+        Alert.alert('Success', successMessage);
       }
     } catch (error) {
+      setGpsStatus('error');
       Alert.alert(
         'Error',
         error instanceof Error ? error.message : 'Failed to send emergency alert'
@@ -171,20 +213,39 @@ export const HomeScreen = () => {
 
   const activateEmergency = async () => {
     try {
+      // Show immediate feedback
+      setIsEmergencyActive(true);
+      startBackgroundPulse();
+      setGpsStatus('searching');
+      
+      // Wait for the alert to be sent, which now always waits for GPS
       const response = await EmergencyService.postEmergencyAlert(
         user ? `${user.first_name} ${user.last_name}` : 'Unknown Teacher'
       );
 
       if (response.success) {
-        setIsEmergencyActive(true);
-        startBackgroundPulse();
-        Alert.alert(
-          'Emergency Alert Sent',
-          'Help is on the way. Stay calm and follow safety procedures.',
-          [{ text: 'OK' }]
-        );
+        setGpsStatus('found');
+        // Debug logging
+        AppLog.info('=== EMERGENCY ALERT SUCCESS ===');
+        AppLog.info('Response:', JSON.stringify(response, null, 2));
+        AppLog.info('GPS Coordinates in response:', response.gpsCoordinates);
+        let successMessage = 'Help is on the way. Stay calm and follow safety procedures.';
+        if (response.gpsCoordinates) {
+          const coords = response.gpsCoordinates;
+          const accuracy = coords.accuracy ? ` (Accuracy: ${coords.accuracy}m)` : '';
+          successMessage += `\n\nGPS Location: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}${accuracy}`;
+          AppLog.info('=== GPS COORDINATES DISPLAYED ===');
+          AppLog.info('Latitude:', coords.latitude);
+          AppLog.info('Longitude:', coords.longitude);
+          AppLog.info('Accuracy:', coords.accuracy);
+          AppLog.info('Success message:', successMessage);
+        } else {
+          AppLog.warn('No GPS coordinates found in response');
+        }
+        Alert.alert('Emergency Alert Sent', successMessage, [{ text: 'OK' }]);
       }
     } catch (error) {
+      setGpsStatus('error');
       Alert.alert(
         'Error',
         error instanceof Error ? error.message : 'Failed to send emergency alert'
@@ -304,6 +365,28 @@ export const HomeScreen = () => {
               <Text style={styles.emergencyButtonText}>
                 {isHolding ? 'HOLD TO ACTIVATE' : 'EMERGENCY'}
               </Text>
+              
+              {/* GPS Status Indicator */}
+              <View style={styles.gpsStatusContainer}>
+                <Icon 
+                  name={gpsStatus === 'searching' ? 'gps-fixed' : 
+                        gpsStatus === 'found' ? 'gps-not-fixed' : 
+                        gpsStatus === 'error' ? 'gps-off' : 'gps-not-fixed'} 
+                  type="material" 
+                  size={16} 
+                  color={gpsStatus === 'searching' ? '#FFD700' : 
+                         gpsStatus === 'found' ? '#00FF00' : 
+                         gpsStatus === 'error' ? '#FF0000' : '#888888'} 
+                />
+                <Text style={[styles.gpsStatusText, { color: gpsStatus === 'searching' ? '#FFD700' : 
+                                                           gpsStatus === 'found' ? '#00FF00' : 
+                                                           gpsStatus === 'error' ? '#FF0000' : '#888888' }]}>
+                  {gpsStatus === 'searching' ? 'GPS' : 
+                   gpsStatus === 'found' ? 'GPS' : 
+                   gpsStatus === 'error' ? 'GPS' : 'GPS'}
+                </Text>
+              </View>
+              
               <Animated.View
                 style={[
                   styles.progressRing,
@@ -801,5 +884,16 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     fontSize: 16,
     marginBottom: 10,
+  },
+  gpsStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  gpsStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 }); 

@@ -15,7 +15,7 @@ class KeychainManager {
 
   static async setToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await SecureStore.setItemAsync(TOKEN_KEY, typeof token === 'string' ? token : JSON.stringify(token));
     } catch (error) {
       AppLog.error('Error setting token:', error);
     }

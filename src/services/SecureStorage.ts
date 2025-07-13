@@ -24,7 +24,7 @@ export class SecureStorage {
   static async setItemAsync(key: string, value: any): Promise<void> {
     try {
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-      await SecureStore.setItemAsync(key, stringValue);
+      await SecureStore.setItemAsync(key, typeof stringValue === 'string' ? stringValue : JSON.stringify(stringValue));
     } catch (error) {
       AppLog.error('Error setting item in secure storage:', error);
     }
